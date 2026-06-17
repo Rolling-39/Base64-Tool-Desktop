@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Base64 Tool</title>
+    <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+    <div class="app">
+        <aside class="sidebar">
+            <div class="sidebar-title">Base64 Tool</div>
+            <nav class="sidebar-nav" id="sidebarNav">
+                <button class="nav-item active" data-panel="encode"><span class="nav-icon">+</span> 加密</button>
+                <button class="nav-item" data-panel="decode"><span class="nav-icon">-</span> 解密</button>
+                <button class="nav-item" data-panel="batch"><span class="nav-icon">=</span> 批量</button>
+                <button class="nav-item" data-panel="log" style="margin-top:auto;"><span class="nav-icon">*</span> 日志</button>
+            </nav>
+            <div class="sidebar-footer">Rolling</div>
+        </aside>
+        <main class="content" id="content"></main>
+    </div>
+    <script type="module" src="/main.js"></script>
+</body>
+</html>

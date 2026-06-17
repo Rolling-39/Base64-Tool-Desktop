@@ -8,17 +8,28 @@
 </head>
 <body>
     <div class="app">
-        <aside class="sidebar">
-            <div class="sidebar-title">Base64 Tool</div>
-            <nav class="sidebar-nav" id="sidebarNav">
-                <button class="nav-item active" data-panel="encode"><span class="nav-icon">+</span> 加密</button>
-                <button class="nav-item" data-panel="decode"><span class="nav-icon">-</span> 解密</button>
-                <button class="nav-item" data-panel="batch"><span class="nav-icon">=</span> 批量</button>
-                <button class="nav-item" data-panel="log" style="margin-top:auto;"><span class="nav-icon">*</span> 日志</button>
-            </nav>
-            <div class="sidebar-footer">Rolling</div>
-        </aside>
-        <main class="content" id="content"></main>
+        <!-- Custom Titlebar -->
+        <header class="titlebar" data-tauri-drag-region>
+            <span class="titlebar-title">Base64 Tool</span>
+            <div class="titlebar-controls">
+                <button class="tb-btn" id="tbMin" title="最小化">-</button>
+                <button class="tb-btn" id="tbMax" title="最大化">+</button>
+                <button class="tb-btn tb-close" id="tbClose" title="关闭">x</button>
+            </div>
+        </header>
+
+        <div class="app-body">
+            <aside class="sidebar">
+                <nav class="sidebar-nav" id="sidebarNav">
+                    <button class="nav-item active" data-panel="encode"><span class="nav-icon">+</span> 加密</button>
+                    <button class="nav-item" data-panel="decode"><span class="nav-icon">-</span> 解密</button>
+                    <button class="nav-item" data-panel="batch"><span class="nav-icon">=</span> 批量</button>
+                    <button class="nav-item" data-panel="log" style="margin-top:auto;"><span class="nav-icon">*</span> 日志</button>
+                </nav>
+                <div class="sidebar-footer">© Rolling</div>
+            </aside>
+            <main class="content" id="content"></main>
+        </div>
     </div>
     <script type="module" src="/main.js"></script>
 </body>

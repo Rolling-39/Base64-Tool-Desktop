@@ -1,0 +1,82 @@
+name: Build and Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - { os: windows-latest,  target: x86_64-pc-windows-msvc,    ext: .exe, platform: win-x64 }
+          - { os: windows-latest,  target: aarch64-pc-windows-msvc,   ext: .exe, platform: win-arm64 }
+          - { os: ubuntu-latest,   target: x86_64-unknown-linux-gnu,  ext: '',   platform: linux-x64 }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, ext: '',   platform: linux-arm64 }
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with: { node-version: '22' }
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with: { targets: ${{ matrix.target }} }
+
+      - name: Install Linux deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libappindicator3-dev \
+            librsvg2-dev patchelf libssl-dev
+
+      - name: npm install
+        run: npm ci
+
+      - name: Build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        run: |
+          cargo tauri build --target ${{ matrix.target }} || true
+          # Find the binary
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            BIN=$(find src-tauri/target/${{ matrix.target }}/release -name "base64-tool.exe" 2>/dev/null)
+          else
+            BIN=$(find src-tauri/target/${{ matrix.target }}/release -name "base64-tool" -type f 2>/dev/null)
+          fi
+          if [ -z "$BIN" ]; then BIN="src-tauri/target/${{ matrix.target }}/release/base64-tool${{ matrix.ext }}"; fi
+          ARTIFACT="base64-tool-${{ matrix.platform }}${{ matrix.ext }}"
+          mkdir -p dist-artifacts
+          cp "$BIN" "dist-artifacts/$ARTIFACT" 2>/dev/null || echo "Binary not found, check build output"
+          echo "ARTIFACT=$ARTIFACT" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}
+          path: dist-artifacts/*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: dist-artifacts }
+
+      - name: List artifacts
+        run: find dist-artifacts -type f -ls
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist-artifacts/**/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

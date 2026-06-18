@@ -6,6 +6,7 @@ use std::fs;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Emitter;
+use tauri::Manager;
 
 static CANCEL_FLAG: AtomicBool = AtomicBool::new(false);
 
@@ -284,6 +285,17 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .setup(|app| {
+            let window = app.get_webview_window("main").expect("no main window");
+            #[cfg(target_os = "windows")]
+            let _ = window_vibrancy::apply_acrylic(&window, Some((18, 18, 18, 64)));
+            #[cfg(target_os = "macos")]
+            let _ = window_vibrancy::apply_vibrancy(
+                &window,
+                window_vibrancy::NSVisualEffectMaterial::HudWindow,
+            );
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             encode_text,
             encode_file,

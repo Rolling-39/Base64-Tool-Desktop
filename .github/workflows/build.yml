@@ -11,7 +11,6 @@ jobs:
       matrix:
         include:
           - { os: windows-latest,   target: x86_64-pc-windows-msvc,    platform: win-x64,  ext: .exe }
-          - { os: windows-latest,   target: aarch64-pc-windows-msvc,   platform: win-arm64, ext: .exe }
           - { os: ubuntu-latest,    target: x86_64-unknown-linux-gnu,  platform: linux-x64, ext: '' }
           - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, platform: linux-arm64, ext: '' }
 
@@ -31,42 +30,33 @@ jobs:
       - name: Install Linux deps
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
+          sudo apt-get update -qq
           sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev \
             libappindicator3-dev librsvg2-dev patchelf libssl-dev
 
       - name: npm ci
         run: npm ci
 
-      - name: Debug: check structure
-        shell: bash
-        run: |
-          echo "=== PWD ===" && pwd
-          echo "=== Project root ===" && ls -la
-          echo "=== src/ ===" && ls -la src/ 2>/dev/null || echo "(missing)"
-          echo "=== src-tauri/ ===" && ls -la src-tauri/ 2>/dev/null || echo "(missing)"
-          echo "=== src-tauri/src/ ===" && ls -la src-tauri/src/ 2>/dev/null || echo "(missing)"
-          echo "=== vite config ===" && cat src-tauri/vite.config.js 2>/dev/null || echo "(missing)"
-
-      - name: Build (Vite + Tauri)
+      - name: Build (Tauri)
         env:
           CARGO_BUILD_TARGET: ${{ matrix.target }}
+        run: npm run build
+        shell: bash
+
+      - name: Collect binary
+        shell: bash
         run: |
-          set -e
-          npx vite build --config src-tauri/vite.config.js --logLevel info
-          cargo build --release --manifest-path src-tauri/Cargo.toml --verbose
           target_dir="src-tauri/target/${{ matrix.target }}/release"
           mkdir -p dist-artifacts
-          src="$target_dir/base64-tool${{ matrix.ext }}"
-          if [ -f "$src" ]; then
-            cp "$src" "dist-artifacts/base64-tool-${{ matrix.platform }}${{ matrix.ext }}"
-            echo "Binary: dist-artifacts/base64-tool-${{ matrix.platform }}${{ matrix.ext }}"
+          bin="$target_dir/base64-tool${{ matrix.ext }}"
+          if [ -f "$bin" ]; then
+            cp "$bin" "dist-artifacts/base64-tool-${{ matrix.platform }}${{ matrix.ext }}"
+            echo "OK: dist-artifacts/base64-tool-${{ matrix.platform }}${{ matrix.ext }}"
           else
-            echo "!!! Binary not found: $src"
-            find src-tauri/target -type f -name "base64-tool*" 2>/dev/null
+            echo "FAIL: binary not at $bin"
+            find src-tauri/target -maxdepth 4 -type f -name "base64-tool*" 2>/dev/null
             exit 1
           fi
-        shell: bash
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

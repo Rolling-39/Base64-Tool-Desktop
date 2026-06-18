@@ -10,10 +10,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - { os: windows-latest,  target: x86_64-pc-windows-msvc,    ext: .exe, platform: win-x64 }
-          - { os: windows-latest,  target: aarch64-pc-windows-msvc,   ext: .exe, platform: win-arm64 }
-          - { os: ubuntu-latest,   target: x86_64-unknown-linux-gnu,  ext: '',   platform: linux-x64 }
-          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, ext: '',   platform: linux-arm64 }
+          - { os: windows-latest,  target: x86_64-pc-windows-msvc,    platform: win-x64,  ext: .exe }
+          - { os: windows-latest,  target: aarch64-pc-windows-msvc,   platform: win-arm64, ext: .exe }
+          - { os: ubuntu-latest,   target: x86_64-unknown-linux-gnu,  platform: linux-x64, ext: '' }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, platform: linux-arm64, ext: '' }
 
     runs-on: ${{ matrix.os }}
 
@@ -32,29 +32,29 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libappindicator3-dev \
-            librsvg2-dev patchelf libssl-dev
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev \
+            libappindicator3-dev librsvg2-dev patchelf libssl-dev
 
-      - name: npm install
+      - name: npm ci
         run: npm ci
 
-      - name: Build
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
         run: |
-          cargo tauri build --target ${{ matrix.target }} || true
-          # Find the binary
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            BIN=$(find src-tauri/target/${{ matrix.target }}/release -name "base64-tool.exe" 2>/dev/null)
-          else
-            BIN=$(find src-tauri/target/${{ matrix.target }}/release -name "base64-tool" -type f 2>/dev/null)
-          fi
-          if [ -z "$BIN" ]; then BIN="src-tauri/target/${{ matrix.target }}/release/base64-tool${{ matrix.ext }}"; fi
-          ARTIFACT="base64-tool-${{ matrix.platform }}${{ matrix.ext }}"
+          npx tauri build --target ${{ matrix.target }} -b appimage
           mkdir -p dist-artifacts
-          cp "$BIN" "dist-artifacts/$ARTIFACT" 2>/dev/null || echo "Binary not found, check build output"
-          echo "ARTIFACT=$ARTIFACT" >> $GITHUB_ENV
+          cp "src-tauri/target/${{ matrix.target }}/release/base64-tool" \
+             "dist-artifacts/base64-tool-${{ matrix.platform }}" 2>/dev/null || \
+          cp "src-tauri/target/${{ matrix.target }}/release/bundle/appimage/"*".AppImage" \
+             "dist-artifacts/base64-tool-${{ matrix.platform }}.AppImage" 2>/dev/null || true
+
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          npx tauri build --target ${{ matrix.target }}
+          mkdir dist-artifacts
+          copy "src-tauri\target\${{ matrix.target }}\release\base64-tool.exe" ^
+               "dist-artifacts\base64-tool-${{ matrix.platform }}.exe"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -70,13 +70,8 @@ jobs:
       - uses: actions/download-artifact@v4
         with: { path: dist-artifacts }
 
-      - name: List artifacts
-        run: find dist-artifacts -type f -ls
-
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: dist-artifacts/**/*
           generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

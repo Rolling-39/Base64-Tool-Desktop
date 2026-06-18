@@ -57,23 +57,32 @@ jobs:
       - name: Collect binary
         shell: bash
         run: |
-          target_dir="src-tauri/target/${{ matrix.target }}/release"
           mkdir -p dist-artifacts
-          bin="$target_dir/base64-tool${{ matrix.ext }}"
-          if [ -f "$bin" ]; then
-            cp "$bin" "dist-artifacts/base64-tool-${{ matrix.platform }}${{ matrix.ext }}"
-            echo "OK: dist-artifacts/base64-tool-${{ matrix.platform }}${{ matrix.ext }}"
-          else
-            echo "FAIL: binary not at $bin"
-            find src-tauri/target -maxdepth 4 -type f -name "base64-tool*" 2>/dev/null
+          NAME="base64-tool${{ matrix.ext }}"
+          # Tauri may output to different locations depending on platform
+          set -e
+          BIN=""
+          for d in \
+            "src-tauri/target/${{ matrix.target }}/release/$NAME" \
+            "src-tauri/target/release/$NAME" \
+            "src-tauri/target/${{ matrix.target }}/release/bundle/$NAME" \
+            ; do
+            if [ -f "$d" ]; then BIN="$d"; break; fi
+          done
+          if [ -z "$BIN" ]; then
+            echo "Searching for binary..."
+            find src-tauri/target -type f -name "$NAME" 2>/dev/null
             exit 1
           fi
+          cp "$BIN" "dist-artifacts/base64-tool-${{ matrix.platform }}${{ matrix.ext }}"
+          ls -la dist-artifacts/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}
-          path: dist-artifacts/*
+          path: dist-artifacts/base64-tool-*
+          if-no-files-found: error
 
   release:
     needs: build
